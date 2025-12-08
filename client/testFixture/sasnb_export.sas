@@ -45,6 +45,7 @@ This is some Julia code
 /*
 This is a separate note in **Markdown** format.
 */
+
 proc julia;
 submit;
 dice=1:6
