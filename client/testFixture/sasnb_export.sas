@@ -37,6 +37,22 @@ endsubmit;
 run;
 
 /*
+## Julia Code
+
+This is some Julia code
+*/
+
+/*
+This is a separate note in **Markdown** format.
+*/
+proc julia;
+submit;
+dice=1:6
+println("Dice Maths: ", dice[3]*4 + dice[6])
+endsubmit;
+run;
+
+/*
 ## SAS Code
 */
 
