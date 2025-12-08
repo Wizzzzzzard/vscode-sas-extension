@@ -86,6 +86,12 @@ enum EmbeddedLangState {
   PROC_LUA_DEF,
   PROC_LUA_SUBMIT_OR_INTERACTIVE,
   PROC_LUA_CODE,
+  PROC_RLANG_DEF,
+  PROC_RLANG_SUBMIT_OR_INTERACTIVE,
+  PROC_RLANG_CODE,
+  PROC_JULIA_DEF,
+  PROC_JULIA_SUBMIT_OR_INTERACTIVE,
+  PROC_JULIA_CODE,
 }
 export class Lexer {
   start = { line: 0, column: 0 };
@@ -290,6 +296,10 @@ export class Lexer {
         ) {
           if (token.type === "text" && token.text === "PYTHON") {
             this.context.embeddedLangState = EmbeddedLangState.PROC_PYTHON_DEF;
+          } else if (token.type === "text" && token.text === "RLANG") {
+            this.context.embeddedLangState = EmbeddedLangState.PROC_RLANG_DEF;
+          } else if (token.type === "text" && token.text === "JULIA") {
+            this.context.embeddedLangState = EmbeddedLangState.PROC_JULIA_DEF;
           } else if (token.type === "text" && token.text === "LUA") {
             this.context.embeddedLangState = EmbeddedLangState.PROC_LUA_DEF;
           }
@@ -321,6 +331,34 @@ export class Lexer {
         ) {
           this.context.embeddedLangState =
             EmbeddedLangState.PROC_LUA_SUBMIT_OR_INTERACTIVE;
+        }
+        break SWITCH;
+      }
+      case EmbeddedLangState.PROC_RLANG_DEF: {
+        token = this._readToken();
+        if (!token) {
+          break SWITCH;
+        }
+        if (
+          token.type === "text" &&
+          ["SUBMIT", "INTERACTIVE", "I"].includes(token.text)
+        ) {
+          this.context.embeddedLangState =
+            EmbeddedLangState.PROC_RLANG_SUBMIT_OR_INTERACTIVE;
+        }
+        break SWITCH;
+      }
+      case EmbeddedLangState.PROC_JULIA_DEF: {
+        token = this._readToken();
+        if (!token) {
+          break SWITCH;
+        }
+        if (
+          token.type === "text" &&
+          ["SUBMIT", "INTERACTIVE", "I"].includes(token.text)
+        ) {
+          this.context.embeddedLangState =
+            EmbeddedLangState.PROC_JULIA_SUBMIT_OR_INTERACTIVE;
         }
         break SWITCH;
       }
@@ -368,6 +406,132 @@ export class Lexer {
                   multiLineStrState = matchedText;
                 } else if (
                   matchedText.startsWith("'") ||
+                  matchedText.startsWith('"') ||
+                  matchedText.startsWith("#")
+                ) {
+                  // do nothing to skip string and single line comment
+                } else {
+                  token = this._foundEmbeddedCodeToken(this.curr, {
+                    line: line,
+                    column: pos + match.index,
+                  });
+                  break SWITCH;
+                }
+              }
+            }
+          } while (match);
+        }
+        token = this._foundEmbeddedCodeToken(this.curr);
+        break SWITCH;
+      }
+      case EmbeddedLangState.PROC_RLANG_SUBMIT_OR_INTERACTIVE: {
+        token = this._readToken();
+        if (!token) {
+          break SWITCH;
+        }
+        if (token.type === "sep" && token.text === ";") {
+          this.context.embeddedLangState = EmbeddedLangState.PROC_RLANG_CODE;
+        }
+        break SWITCH;
+      }
+      case EmbeddedLangState.PROC_RLANG_CODE: {
+        // R doesn't have multi-line string delimiters like Python's triple quotes
+        for (
+          let line = this.curr.line;
+          line < this.model.getLineCount();
+          line++
+        ) {
+          const lineContent = this._readEmbeddedCodeLine(this.curr, line);
+          let pos = 0;
+          let match;
+          do {
+            if (match) {
+              pos += match.index + match[0].length;
+            }
+            const stringReg = /("[^"]*?("|$))|('[^']*?('|$))/;
+            const commentReg = /#.*$/;
+            const secReg =
+              /(\b((endsubmit|endinteractive)(\s+|\/\*.*?\*\/)*;|(data|proc|%macro)\b[^'";]*;))/;
+            match = new RegExp(
+              `${stringReg.source}|${commentReg.source}|${secReg.source}`,
+              "m",
+            ).exec(lineContent.substring(pos));
+            if (match) {
+              const matchedText = match[0];
+              if (/^('|"|#)/.test(matchedText)) {
+                // do nothing to skip string and single line comment
+              } else {
+                token = this._foundEmbeddedCodeToken(this.curr, {
+                  line: line,
+                  column: pos + match.index,
+                });
+                break SWITCH;
+              }
+            }
+          } while (match);
+        }
+        token = this._foundEmbeddedCodeToken(this.curr);
+        break SWITCH;
+      }
+      case EmbeddedLangState.PROC_JULIA_SUBMIT_OR_INTERACTIVE: {
+        token = this._readToken();
+        if (!token) {
+          break SWITCH;
+        }
+        if (token.type === "sep" && token.text === ";") {
+          this.context.embeddedLangState = EmbeddedLangState.PROC_JULIA_CODE;
+        }
+        break SWITCH;
+      }
+      case EmbeddedLangState.PROC_JULIA_CODE: {
+        // Julia supports triple-quoted strings and nested multi-line comments
+        let multiLineStrState: false | '"""' = false;
+        let multiLineCommentDepth = 0;
+        for (
+          let line = this.curr.line;
+          line < this.model.getLineCount();
+          line++
+        ) {
+          const lineContent = this._readEmbeddedCodeLine(this.curr, line);
+          let pos = 0;
+          let match;
+          do {
+            if (match) {
+              pos += match.index + match[0].length;
+            }
+            if (multiLineCommentDepth > 0) {
+              // Inside multi-line comment #= ... =#
+              match = /#=|=#/.exec(lineContent.substring(pos));
+              if (match) {
+                if (match[0] === "#=") {
+                  multiLineCommentDepth++;
+                } else if (match[0] === "=#") {
+                  multiLineCommentDepth--;
+                }
+              }
+            } else if (multiLineStrState) {
+              // Inside triple-quoted string
+              match = /"""/.exec(lineContent.substring(pos));
+              if (match) {
+                multiLineStrState = false;
+              }
+            } else {
+              // Looking for strings, comments, or SAS keywords
+              const stringReg = /"""|("[^"\\\n]*(\\.[^"\\\n]*)*")/;
+              const commentReg = /#=|#.*$/;
+              const secReg =
+                /(\b((endsubmit|endinteractive)(\s+|\/\*.*?\*\/)*;|(data|proc|%macro)\b[^'";]*;))/;
+              match = new RegExp(
+                `${stringReg.source}|${commentReg.source}|${secReg.source}`,
+                "m",
+              ).exec(lineContent.substring(pos));
+              if (match) {
+                const matchedText = match[0];
+                if (matchedText === '"""') {
+                  multiLineStrState = '"""';
+                } else if (matchedText === "#=") {
+                  multiLineCommentDepth = 1;
+                } else if (
                   matchedText.startsWith('"') ||
                   matchedText.startsWith("#")
                 ) {

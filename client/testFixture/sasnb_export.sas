@@ -20,6 +20,40 @@ endsubmit;
 run;
 
 /*
+## R Code
+
+This is some R code
+*/
+
+/*
+This is a separate note in **Markdown** format.
+*/
+
+proc rlang;
+submit;
+die <- 1:6
+paste("Die Maths: ", die[3]*4 + die[6])
+endsubmit;
+run;
+
+/*
+## Julia Code
+
+This is some Julia code
+*/
+
+/*
+This is a separate note in **Markdown** format.
+*/
+
+proc julia;
+submit;
+dice=1:6
+println("Dice Maths: ", dice[3]*4 + dice[6])
+endsubmit;
+run;
+
+/*
 ## SAS Code
 */
 

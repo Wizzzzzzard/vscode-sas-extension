@@ -16,7 +16,9 @@ import {
 
 import { readFileSync } from "fs";
 import hljs from "highlight.js/lib/core";
+import julia from "highlight.js/lib/languages/julia";
 import python from "highlight.js/lib/languages/python";
+import r from "highlight.js/lib/languages/r";
 import sql from "highlight.js/lib/languages/sql";
 import { marked } from "marked";
 import path from "path";
@@ -27,7 +29,9 @@ import { includeLogInNotebookExport } from "../../utils/settings";
 const templatesDir = path.resolve(__dirname, "../notebook/exporters/templates");
 
 hljs.registerLanguage("python", python);
+hljs.registerLanguage("r", r);
 hljs.registerLanguage("sql", sql);
+hljs.registerLanguage("julia", julia);
 
 export const exportToHTML = async (
   notebook: NotebookDocument,

@@ -1296,7 +1296,9 @@
         "embeddedLanguages": {
           "source.python": "python",
           "source.lua": "lua",
-          "source.sql": "sql"
+          "source.sql": "sql",
+          "source.r": "r",
+          "source.julia": "julia"
         }
       }
     ],

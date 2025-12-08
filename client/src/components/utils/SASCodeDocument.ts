@@ -180,6 +180,22 @@ endsubmit;
 run;`;
   }
 
+  private wrapRlang(code: string) {
+    return `proc rlang;
+submit;
+${code}
+endsubmit;
+run;`;
+  }
+
+  private wrapJulia(code: string) {
+    return `proc julia;
+submit;
+${code}
+endsubmit;
+run;`;
+  }
+
   private insertLogStartIndicator(code: string): string {
     // add a comment line at the top of code,
     // this comment line will be used as indicator to the beginning of log related with this code
@@ -196,6 +212,14 @@ ${code}`;
 
     if (this.parameters.languageId === "python") {
       wrapped = this.wrapPython(wrapped);
+    }
+
+    if (this.parameters.languageId === "r") {
+      wrapped = this.wrapRlang(wrapped);
+    }
+
+    if (this.parameters.languageId === "julia") {
+      wrapped = this.wrapJulia(wrapped);
     }
 
     wrapped = this.wrapCodeWithSASProgramFileName(wrapped);
