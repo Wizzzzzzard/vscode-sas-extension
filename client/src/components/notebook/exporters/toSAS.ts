@@ -17,6 +17,8 @@ const exportCell = (cell: NotebookCell) => {
       return wrapPython(text);
     case "r":
       return wrapR(text);
+    case "julia":
+      return wrapJulia(text);
     case "sql":
       return wrapSQL(text);
     case "markdown":
@@ -40,6 +42,12 @@ endsubmit;
 run;`;
 
 const wrapR = (code: string) => `proc r;
+submit;
+${code}
+endsubmit;
+run;`;
+
+const wrapJulia = (code: string) => `proc julia;
 submit;
 ${code}
 endsubmit;
